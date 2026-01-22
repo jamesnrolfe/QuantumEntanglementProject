@@ -1,5 +1,5 @@
-function get_system_params()::Dict{String, Any}
-    return Dict{String, Any}(
+function get_system_params()::Dict{String,Any}
+    return Dict{String,Any}(
         "J" => 1.0,
         "Δ" => 1.0,
         "μ" => 1.0,
