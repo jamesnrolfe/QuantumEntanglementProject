@@ -16,7 +16,6 @@ save_mps_with_params(
     run_params
 )
 
-psi, sys, run, = load_mps_with_params("data/mps/test_save.hd5")
-println(psi)
-println(sys)
-println(run)
+sys, run, = load_all_mps_from_file("data/mps/test_save.hd5")
+print(sys)
+print(run)

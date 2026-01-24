@@ -205,3 +205,114 @@ function load_mps_with_params(
 
     return result
 end
+
+"""
+Return the system parameters in a specific file.
+"""
+function get_system_params_of_file(filepath::String)::Union{Dict{String,Any},Nothing}
+    system_params = Dict{String,Any}()
+
+    h5open(filepath, "r") do file
+        if haskey(file, "system_params")
+            system_group = file["system_params"]
+            for key in keys(system_group)
+                try
+                    system_params[string(key)] = read(system_group, key)
+                catch
+                    # read as string as fallback
+                    system_params[string(key)] = string(system_group[key])
+                end
+            end
+        else
+            @warn "No `system_params` group found in $filepath."
+            return nothing
+        end
+    end
+
+    return system_params
+end
+
+"""
+Load all the run data from a specific file.
+
+Will return all runs associated with the set of system parameters defining the file.
+"""
+function load_all_mps_from_file(filepath::String)
+    # Try to read system params (may return nothing)
+    system_params = get_system_params_of_file(filepath)
+    if system_params === nothing
+        system_params = Dict{String,Any}()
+    end
+
+    runs = Vector{NamedTuple{(:run_id, :psi, :params),Tuple{String,MPS,Dict{String,Any}}}}()
+
+    h5open(filepath, "r") do file
+        if !haskey(file, "runs")
+            @warn "No 'runs' group found in $filepath"
+            return (system_params, runs)
+        end
+
+        runs_group = file["runs"]
+        run_names = collect(keys(runs_group))
+        if isempty(run_names)
+            @warn "No runs found in 'runs' group of $filepath"
+            return (system_params, runs)
+        end
+
+        # Determine ordering: prefer numeric ids in ascending order if any are purely numeric,
+        # otherwise use lexicographic ordering.
+        nums_map = Dict{Int,String}()
+        for nm in run_names
+            n = tryparse(Int, string(nm))
+            if n !== nothing
+                nums_map[n] = string(nm)
+            end
+        end
+
+        ordered_run_names = if !isempty(nums_map)
+            [nums_map[k] for k in sort(collect(keys(nums_map)))]
+        else
+            sort(string.(run_names))
+        end
+
+        for rn in ordered_run_names
+            run_group = runs_group[rn]
+
+            # Read MPS (prefer direct conversion to MPS, otherwise provide diagnostics and rethrow)
+            psi = nothing
+            try
+                psi = read(run_group, "psi", MPS)
+            catch e
+                @warn "Direct read into MPS failed for run $rn; attempting raw read for diagnostics."
+                raw = try
+                    read(run_group, "psi")
+                catch inner
+                    @error "Raw read also failed for run $rn" exception = (inner, catch_backtrace())
+                    rethrow(inner)
+                end
+                @info "Raw read for run $rn type: $(typeof(raw))"
+                if isa(raw, Dict)
+                    @info "Raw read keys for run $rn: $(collect(keys(raw)))"
+                end
+                rethrow(e)
+            end
+
+            # Read run params if present
+            run_params = Dict{String,Any}()
+            if haskey(run_group, "params")
+                run_params_group = run_group["params"]
+                for key in keys(run_params_group)
+                    try
+                        run_params[string(key)] = read(run_params_group, key)
+                    catch
+                        run_params[string(key)] = string(run_params_group[key])
+                    end
+                end
+            end
+
+            push!(runs, (run_id=string(rn), psi=psi, params=run_params))
+        end
+    end
+
+    return (system_params, runs)
+end
