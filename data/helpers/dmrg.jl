@@ -6,6 +6,8 @@ using ITensors
 using ITensorMPS
 using Statistics
 
+const _sites_cache = Dict{Tuple{Int,Bool},Any}()
+
 """
     Generate a randomly weighted adjacency matrix for a fully connected graph of N nodes.
     """
@@ -54,7 +56,14 @@ end # function
 """Create a random MPS for a spin-1/2 graph of size N."""
 function create_mps(N::Int; conserve_qns::Bool=true)::Tuple{MPS,Vector{Index{Vector{Pair{QN,Int64}}}}}
     # create a site set for a spin-1/2 system
-    sites::Vector{Index{Vector{Pair{QN,Int64}}}} = siteinds("S=1/2", N; conserve_qns=conserve_qns)
+
+    key = (N, conserve_qns)
+    sites = get(_sites_cache, key, nothing)
+    if sites === nothing
+        sites = siteinds("S=1/2", N; conserve_qns=conserve_qns)
+        _sites_cache[key] = sites
+    end
+
     # create a random MPS
     return MPS(sites, [isodd(i) ? "Up" : "Dn" for i = 1:N]), sites
 end # function
