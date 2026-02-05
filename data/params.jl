@@ -11,6 +11,7 @@ function get_system_params()::Dict{String,Any}
     )
 end
 
+"""Get a standardised filename for a set of system parameters."""
 function extract_filename_from_system_params(params::Dict{String,Any})::String
     string = ""
     for (key, value) in params

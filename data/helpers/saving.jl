@@ -512,7 +512,7 @@ function find_runs_by_params(
                 # skip non-fresh-layout run groups
                 continue
             end
-            # read run params (lightweight)
+            # read run params
             existing_params = _read_params_from_group(run_group["params"])
             if !_params_match(existing_params, query_params)
                 continue
@@ -526,7 +526,7 @@ function find_runs_by_params(
             end
 
             ordered_inst_names = begin
-                # prefer numeric ordering if possible, else lexicographic
+                # prefer numeric ordering if possible
                 nums = Int[]
                 for nm in inst_names
                     n = tryparse(Int, string(nm))
@@ -579,6 +579,7 @@ function find_runs_by_params(
                         rethrow(e)
                     end
                 end
+                # named tuple, containing run_id, instance_id, psi (if loaded), params and timestamp
                 push!(matches, (run_id=string(rn), instance_id=string(inst), psi=psi_val, params=existing_params, timestamp=timestamp))
             end
         end
