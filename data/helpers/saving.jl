@@ -441,3 +441,148 @@ function load_all_mps_from_file(filepath::String)
 
     return (system_params, runs)
 end
+
+function _params_match(existing::Dict{String,Any}, query::Dict{String,Any})::Bool
+    # Match if for every (k,v) in query, existing[k] equals v (direct equality
+    # or equality of string representations). This handles values saved as strings.
+    for (k, vq) in query
+        ks = string(k)
+        if !haskey(existing, ks)
+            return false
+        end
+        ev = existing[ks]
+        if ev == vq
+            continue
+        end
+        if string(ev) == string(vq)
+            continue
+        end
+        return false
+    end
+    return true
+end
+
+"""
+Find runs in `filepath` whose run parameters match `query_params`.
+
+Arguments
+- `filepath::String`: path to the HDF5 file.
+- `query_params::Dict{String,Any}`: only runs that contain matching key/value pairs for all entries in this dict are returned.
+  (Matching is tolerant to values that were stored as strings, i.e. `string(existing) == string(query)` will be considered equal.)
+Keyword arguments
+- `load_psi::Bool=false` : if `true`, the function will read and return the `psi` for the selected instance(s) (this can be slow).
+- `instance_selection::Union{String,Symbol,Nothing}=:latest` :
+    - `:latest` (default) -> choose the most recent instance of matching runs (prefers numeric instance ids)
+    - `:all` -> return all instances for matching runs
+    - a `String` or `Int` -> specific instance id to load/check
+
+Returns
+A `Vector` of named tuples. Each element contains:
+  - `run_id::String`
+  - `instance_id::String`
+  - `psi::Union{MPS,Nothing}`  (present when `load_psi=true`, otherwise `nothing`)
+  - `params::Dict{String,Any}` (the run params read from file)
+  - `timestamp::Union{String,Nothing}`
+
+Notes
+- This function only reads run `params` groups for matching and will avoid loading MPS data unless asked (useful for large files).
+"""
+function find_runs_by_params(
+    filepath::String,
+    query_params::Dict{String, Any};
+    load_psi::Bool=false,
+    instance_selection::Union{String,Symbol,Nothing}=:latest
+)
+    matches = Vector{NamedTuple{(:run_id,:instance_id,:psi,:params,:timestamp),Tuple{String,String,Union{MPS,Nothing},Dict{String,Any},Union{String,Nothing}}}}()
+
+    if !isfile(filepath)
+        @warn "File does not exist: $filepath"
+        return Vector{NamedTuple}()
+    end
+
+    h5open(filepath, "r") do file
+        if !haskey(file, "runs")
+            @info "No 'runs' group in $filepath"
+            return matches
+        end
+        runs_group = file["runs"]
+        for rn in keys(runs_group)
+            run_group = runs_group[string(rn)]
+            if !haskey(run_group, "params") || !haskey(run_group, "instances")
+                # skip non-fresh-layout run groups
+                continue
+            end
+            # read run params (lightweight)
+            existing_params = _read_params_from_group(run_group["params"])
+            if !_params_match(existing_params, query_params)
+                continue
+            end
+
+            # We have a matching run. Decide instances to return
+            instances_group = run_group["instances"]
+            inst_names = collect(keys(instances_group))
+            if isempty(inst_names)
+                continue
+            end
+
+            ordered_inst_names = begin
+                # prefer numeric ordering if possible, else lexicographic
+                nums = Int[]
+                for nm in inst_names
+                    n = tryparse(Int, string(nm))
+                    if n !== nothing
+                        push!(nums, n)
+                    end
+                end
+                if !isempty(nums)
+                    [string(i) for i in sort(nums)]
+                else
+                    sort(string.(inst_names))
+                end
+            end
+
+            selected_instances = String[]
+            if instance_selection === :all
+                append!(selected_instances, ordered_inst_names)
+            elseif instance_selection === :latest
+                push!(selected_instances, ordered_inst_names[end])
+            else
+                # user provided specific instance id (string or integer)
+                sel = string(instance_selection)
+                if sel in ordered_inst_names
+                    push!(selected_instances, sel)
+                else
+                    @warn "Requested instance '$sel' not found in run $(rn); available instances: $(ordered_inst_names). Skipping."
+                    continue
+                end
+            end
+
+            for inst in selected_instances
+                inst_group = instances_group[inst]
+                timestamp = haskey(inst_group, "timestamp") ? string(inst_group["timestamp"]) : nothing
+                psi_val = nothing
+                if load_psi
+                    psi_val = try
+                        read(inst_group, "psi", MPS)
+                    catch e
+                        @warn "Direct read into MPS failed for run $(rn) instance $(inst); attempting raw read for diagnostics."
+                        raw = try
+                            read(inst_group, "psi")
+                        catch inner
+                            @error "Raw read also failed for run $(rn) instance $(inst)" exception = (inner, catch_backtrace())
+                            rethrow(inner)
+                        end
+                        @info "Raw read type: $(typeof(raw))"
+                        if isa(raw, Dict)
+                            @info "Raw read keys: $(collect(keys(raw)))"
+                        end
+                        rethrow(e)
+                    end
+                end
+                push!(matches, (run_id=string(rn), instance_id=string(inst), psi=psi_val, params=existing_params, timestamp=timestamp))
+            end
+        end
+    end
+
+    return matches
+end

@@ -1,7 +1,8 @@
+
 using ITensors, ITensorMPS, HDF5, Plots
 
 include("../../data/params.jl")
-include("../../data/helpers/saving.jl")
+include("../../data/helpers/saving.jl")   # must provide `find_runs_by_params`
 
 CURRENT_DIR = @__DIR__
 
@@ -18,31 +19,37 @@ sigma_vals = [0.00, 0.00001, 0.0001, 0.001]
 
 accuracies = 10.0 .^ -(1:16)
 
-DATA = Dict{String,Any}()
-for acc in accuracies
-    base_system_params["ACC"] = acc
-    fn = extract_filename_from_system_params(base_system_params)
-    path = joinpath(CURRENT_DIR, "../../data/storage/$(fn).hd5")
-    try
-        system_params, runs = load_all_mps_from_file(path)
-        DATA["$acc"] = runs
-    catch
-        @error "Failed to load data from file $path"
-    end
-end
-
 SIGMA_DATA = Dict{String, Dict{String, Any}}()
 for sigma in sigma_vals
     SIGMA_DATA["$sigma"] = Dict{String, Any}()
+
     for acc in accuracies
-        runs = get(DATA, "$acc", nothing)
-        if runs === nothing continue end
-        for run in runs
-            if run.params["σ"] ≈ sigma && run.params["N"] == N
-                SIGMA_DATA["$sigma"]["$acc"] = run.psi
-            end
+        base_system_params["ACC"] = acc
+        fn = extract_filename_from_system_params(base_system_params)
+        path = joinpath(CURRENT_DIR, "../../data/storage/$(fn).hd5")
+
+        query::Dict{String, Any} = Dict{String,Any}("N" => N, "σ" => sigma)
+
+        matches = nothing
+        try
+            @info "Querying $path for (N=$N, σ=$sigma, ACC=$acc)..."
+            matches = find_runs_by_params(path, query; load_psi=true, instance_selection=:latest)
+        catch e
+            @warn "Querying file failed" file=path exception=(e,catch_backtrace())
+            matches = []
         end
 
+        if isempty(matches)
+            continue
+        end
+
+        m = matches[1]
+        if m.psi === nothing
+            @warn "Found matching run but psi was not loaded for $(path) (acc=$(acc) σ=$(sigma))"
+            continue
+        end
+
+        SIGMA_DATA["$sigma"]["$acc"] = m.psi
     end
 end
 
@@ -53,11 +60,15 @@ for sigma in sigma_vals
     bd_vals = Int[]
 
     sigma_data = get(SIGMA_DATA, "$sigma", nothing)
-    if sigma_data === nothing continue end
+    if sigma_data === nothing
+        continue
+    end
 
     for acc in sort(accuracies)
         mps = get(sigma_data, "$acc", nothing)
-        if mps === nothing continue end
+        if mps === nothing
+            continue
+        end
 
         push!(acc_vals, acc)
         push!(bd_vals, maxlinkdim(mps))
@@ -73,3 +84,7 @@ for sigma in sigma_vals
 end
 
 display(p)
+
+out_path = joinpath(CURRENT_DIR, "bond_dim_vs_acc_N$(N).png")
+savefig(p, out_path)
+@info "Saved figure to $out_path"
