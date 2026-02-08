@@ -32,7 +32,7 @@ end
 
 function main()
     save_path = "data/mps/default_params.hd5"
-    N_vals = 10:5:80
+    N_vals = 20:10:80
     sigma_vals = [0.000, 0.001, 0.002]
 
     # Get system parameters
