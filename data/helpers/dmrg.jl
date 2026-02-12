@@ -24,7 +24,7 @@ function generate_fully_connected_wam(N::Int, σ::Float64, μ::Float64)::Matrix{
 end # function
 
 """Create the XXZ Hamiltonian as an MPO given an adjacency matrix."""
-function create_xxz_hamiltonian_mpo(N::Int, A::Matrix{Float64}, J::Float64, Δ::Float64, sites::Vector{Index{Vector{Pair{QN,Int64}}}})::MPO
+function create_xxz_hamiltonian_mpo(N::Int, A::Matrix{Float64}, J::Float64, Δ::Float64, sites)::MPO
     mpo = OpSum()
     for i = 1:N-1
         for j = i+1:N
@@ -54,7 +54,7 @@ function solve_xxz_hamiltonian_dmrg(H::MPO, ψ0::MPS, num_sweeps::Int, bond_dim:
             nsweeps = num_sweeps,
             maxdim = bond_dim,
             cutoff = cutoff,
-            outputlevel = 0)
+            outputlevel = 1)
     return E, ψ
 end # function
 

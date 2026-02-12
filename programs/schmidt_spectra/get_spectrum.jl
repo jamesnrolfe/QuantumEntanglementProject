@@ -1,4 +1,4 @@
-function get_squared_sorted_schmidt_spectrum_from_mps(psi::MPS, cutoff=cutoff)
+function get_squared_sorted_schmidt_spectrum_from_mps(psi::MPS)
     N = length(psi)
 
     # MIDDLE bond
@@ -6,7 +6,7 @@ function get_squared_sorted_schmidt_spectrum_from_mps(psi::MPS, cutoff=cutoff)
 
     orthogonalize!(psi, middle_bond)
     link_idx = linkind(psi, middle_bond)
-    _, S, _ = svd(psi[middle_bond], (siteind(psi, middle_bond), link_idx), cutoff=cutoff)
+    _, S, _ = svd(psi[middle_bond], (siteind(psi, middle_bond), link_idx))
 
     schmidt_dim = dim(S, 1)
 
