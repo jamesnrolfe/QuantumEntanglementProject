@@ -46,10 +46,15 @@ end # function
 
 """Apply the DMRG to a Hamiltonian."""
 function solve_xxz_hamiltonian_dmrg(H::MPO, ψ0::MPS, num_sweeps::Int, bond_dim::Int, cutoff::Float64)::Tuple{Float64,MPS}
-    local sweeps = Sweeps(num_sweeps)
-    setmaxdim!(sweeps, bond_dim)
-    setcutoff!(sweeps, cutoff)
-    E, ψ = dmrg(H, ψ0, sweeps; outputlevel=0) # output level 0 to make it quieter
+    # local sweeps = Sweeps(num_sweeps)
+    # setmaxdim!(sweeps, bond_dim)
+    # setcutoff!(sweeps, cutoff)
+    # E, ψ = dmrg(H, ψ0, sweeps; outputlevel=0) # output level 0 to make it quieter
+    E, ψ = dmrg(H, ψ0;
+            nsweeps = num_sweeps,
+            maxdim = bond_dim,
+            cutoff = cutoff,
+            outputlevel = 0)
     return E, ψ
 end # function
 

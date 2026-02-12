@@ -5,9 +5,9 @@ include("../helpers/saving.jl")
 include("../params.jl")
 
 function main()
-    N_vals = 20:20:80
-    sigma_vals = [0.00, 0.0001, 0.001, 0.002]
-    accuracies = [10^-10]
+    N_vals = 40
+    sigma_vals = [0.002]
+    accuracies = [10^-16]
     repeats = 1
 
     num_tasks = repeats * length(N_vals) * length(sigma_vals) * length(accuracies)
@@ -24,7 +24,7 @@ function main()
                     "Δ" => -1.0,
                     "μ" => 1.0,
                     "NUM_SWEEPS" => 30,
-                    "MAX_BOND_DIM" => 1000,
+                    "MAX_BOND_DIM" => 21,
                     "ACC" => accuracy
                     )
                     run_params = Dict{String,Any}(
@@ -38,12 +38,20 @@ function main()
                     @time psi = find_ground_state_mps(run_params, system_params)
                     @info "Computation complete, saving..."
 
+                    max_dim = maxlinkdim(psi)
+                    @info "DMRG reported max link dimension: $max_dim"
+
                     save_mps_with_params(save_path, psi, system_params, run_params)
 
                     @info "Saved results for N=$N, σ=$sigma and acc=$accuracy"
                     percent_complete = (cur_task / num_tasks) * 100
                     @info "=== $percent_complete% complete ==="
                     cur_task += 1
+
+                    # garbage collector has troublue with these large objects
+                    # so we expiclity clear it here
+                    GC.gc()
+                    psi = nothing  # ... and large objects (mps)
                 end
             end
         end

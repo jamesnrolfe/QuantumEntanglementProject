@@ -8,6 +8,7 @@ using ITensors, ITensorMPS, Plots
 include("../../data/params.jl")
 include("../../data/helpers/saving.jl")
 include("./get_spectrum.jl")
+include("deviation/deviation.jl")
 
 @info "Setting paramters..."
 # now want to load in the mps states we want
@@ -19,7 +20,7 @@ system_params = Dict{String,Any}(
     "μ" => 1.0,
     "NUM_SWEEPS" => 30,
     "MAX_BOND_DIM" => 1000,
-    "ACC" => 1e-10 # use a relatively low accuracy
+    "ACC" => 1e-16 # use a relatively low accuracy
 )
 
 FILENAME = extract_filename_from_system_params(system_params)
@@ -46,7 +47,9 @@ for N in N_vals
         matches = []
     end
 
-    if isempty(matches) continue end
+    if isempty(matches)
+        @warn "Could not find data for N=$N, σ=$σ"
+        continue end
 
     num_runs = min(3, length(matches))
     @info "Using latest $num_runs runs for averaging."
@@ -99,6 +102,8 @@ p = plot(title="Schmidt Spectra, σ=$σ; cutoff=$acc", ylabel="Schmidt Values Sq
     # xscale=:log
 )
 
+
+dev_idxs = Dict{Int, Int}()
 for N in N_vals
     if !haskey(N_to_SS_map, N)
         continue
@@ -106,8 +111,30 @@ for N in N_vals
 
     spec = N_to_SS_map[N]
 
+    # want to find the deviation index using kneedle
+    dev_idx = find_deviation_idx(spec)
+    @info "Found deviation index $dev_idx for N=$N"
+    dev_idx_val = spec[dev_idx]
+
+    dev_idxs[N] = dev_idx
+
     plot!(p, 1:length(spec), spec, label="N=$N")
+    scatter!(p, [dev_idx], [dev_idx_val], markersize=3)
 end
 
 savefig(p, joinpath(CURRENT_DIR, "schmidt_spectra_constant_disorder_σ=$(σ)_acc=$acc.png"))
-@info "Plot saved!"
+
+
+sorted_pairs = sort(collect(dev_idxs), by = x -> x[1])
+ns = first.(sorted_pairs)
+idxs = last.(sorted_pairs)
+p1 = plot(
+    ns, idxs,
+    title="dev idx with N, σ=$σ; cutoff=$acc",
+    ylabel="Deviation Index",
+    xlabel="N",
+    markersize=3,
+    marker=:circle,
+    legend=false,
+)
+savefig(p1, joinpath(CURRENT_DIR, "dev_idx_vs_size_σ=$(σ)_acc=$acc.png"))

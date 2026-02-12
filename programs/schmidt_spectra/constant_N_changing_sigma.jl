@@ -19,7 +19,7 @@ system_params = Dict{String,Any}(
     "μ" => 1.0,
     "NUM_SWEEPS" => 30,
     "MAX_BOND_DIM" => 1000,
-    "ACC" => 1e-10
+    "ACC" => 1e-16
 )
 
 FILENAME = extract_filename_from_system_params(system_params)
