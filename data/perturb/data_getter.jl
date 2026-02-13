@@ -5,10 +5,13 @@ include("../helpers/saving.jl")
 include("../params.jl")
 
 function main()
-    N_vals = [40]
-    sigma_vals = [0.002]
+    N_vals = [20, 30, 50, 60,]
+    sigma_vals = 0.0001:0.0001:0.002
     accuracies = [10^-16]
     repeats = 1
+
+    J = Δ = -1.0
+    μ = 1.0
 
     num_tasks = repeats * length(N_vals) * length(sigma_vals) * length(accuracies)
     cur_task = 1
@@ -16,58 +19,54 @@ function main()
     for r in 1:repeats
         @info "Starting wave $r"
         for N in N_vals
-            for accuracy in accuracies
-                for sigma in sigma_vals
-                    @info "Computing results for N=$N, σ=$sigma and acc=$accuracy"
+            A_cln = generate_fully_connected_wam(N, 0.00, μ)
+            sites = siteinds("S=1/2", N; conserve_qns=true)
+            psi_init = MPS(sites, [isodd(i) ? "Up" : "Dn" for i = 1:N])
+            H_cln = create_xxz_hamiltonian_mpo(N, A_cln, J, Δ, sites)
 
-                    system_params = Dict{String,Any}(
-                    "J" => -1.0,
-                    "Δ" => -1.0,
-                    "μ" => 1.0,
+            for accuracy in accuracies
+                system_params = Dict{String,Any}(
+                    "J" => J,
+                    "Δ" => Δ,
+                    "μ" => μ,
                     "NUM_SWEEPS" => 10,
                     "MAX_BOND_DIM" => 1000,
                     "ACC" => accuracy
-                    )
-                    clean_run_params = Dict{String,Any}(
+                )
+                clean_run_params = Dict{String,Any}(
                     "N" => N,
                     "σ" => 0.00
-                    )
+                )
+                NUM_SWEEPS = system_params["NUM_SWEEPS"]
+                MAX_BOND_DIM = system_params["MAX_BOND_DIM"]
+                ACC = system_params["ACC"]
+                _, gs_cln = solve_xxz_hamiltonian_dmrg(H_cln, psi_init, NUM_SWEEPS, MAX_BOND_DIM, ACC)
+
+                for sigma in sigma_vals
+                    @info "Computing results for N=$N, σ=$sigma and acc=$accuracy"
+
                     disorder_run_params = Dict{String,Any}(
                     "N" => N,
                     "σ" => sigma
                     )
 
-                    filename = "perturb_$(extract_filename_from_system_params(system_params))"
+                    filename = "perturb_sigma_$(sigma)_$(extract_filename_from_system_params(system_params))"
                     save_path = "data/storage/$(filename).hd5"
 
-                    @info "Creating adjacency matrices..."
+                    @info "Creating adjacency matrix..."
 
-                    A_cln = generate_fully_connected_wam(N, 0.00, system_params["μ"])
                     A_dis = generate_fully_connected_wam(N, sigma, system_params["μ"])
 
-                    @info "Created adjacency matrices"
-
-                    @info "Creating sites..."
-
-                    sites = siteinds("S=1/2", N; conserve_qns=true)
-                    psi_init = MPS(sites, [isodd(i) ? "Up" : "Dn" for i = 1:N])
-
-                    @info "Created sites"
+                    @info "Created adjacency matrix"
 
                     @info "Creating MPOs..."
 
-                    H_cln = create_xxz_hamiltonian_mpo(N, A_cln, system_params["J"], system_params["Δ"], sites)
                     H_dis = create_xxz_hamiltonian_mpo(N, A_dis, system_params["J"], system_params["Δ"], sites)
 
                     @info "Created MPOs"
 
-                    NUM_SWEEPS = system_params["NUM_SWEEPS"]
-                    MAX_BOND_DIM = system_params["MAX_BOND_DIM"]
-                    ACC = system_params["ACC"]
-
                     @info "Computing ground state..."
 
-                    _, gs_cln = solve_xxz_hamiltonian_dmrg(H_cln, psi_init, NUM_SWEEPS, MAX_BOND_DIM, ACC)
                     _, gs_dis = solve_xxz_hamiltonian_dmrg(H_dis, psi_init, NUM_SWEEPS, MAX_BOND_DIM, ACC)
 
                     @info "Computation complete, saving..."
@@ -81,10 +80,11 @@ function main()
                     cur_task += 1
 
                     GC.gc()
-                    gs_cln = nothing
                     gs_dis = nothing
 
                 end
+                gs_cln = nothing
+                GC.gc()
             end
         end
     end
