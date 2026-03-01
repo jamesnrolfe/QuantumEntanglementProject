@@ -5,10 +5,10 @@ include("../helpers/saving.jl")
 include("../params.jl")
 
 function main()
-    N_vals = [20, 30, 50, 60,]
-    sigma_vals = 0.0001:0.0001:0.002
-    accuracies = [10^-16]
-    repeats = 1
+    N_vals = 22:5:118
+    sigma_vals = 0.002
+    accuracies = [10^-10]
+    repeats = 3
 
     J = Δ = -1.0
     μ = 1.0
@@ -30,7 +30,7 @@ function main()
                     "Δ" => Δ,
                     "μ" => μ,
                     "NUM_SWEEPS" => 10,
-                    "MAX_BOND_DIM" => 1000,
+                    "MAX_BOND_DIM" => 2000,
                     "ACC" => accuracy
                 )
                 clean_run_params = Dict{String,Any}(
