@@ -5,10 +5,10 @@ include("../helpers/saving.jl")
 include("../params.jl")
 
 function main()
-    N_vals = 22:5:118
+    N_vals = 65:5:80
     sigma_vals = 0.002
-    accuracies = [10^-10]
-    repeats = 3
+    accuracies = [1e-16]
+    repeats = 1
 
     J = Δ = -1.0
     μ = 1.0
@@ -29,7 +29,7 @@ function main()
                     "J" => J,
                     "Δ" => Δ,
                     "μ" => μ,
-                    "NUM_SWEEPS" => 10,
+                    "NUM_SWEEPS" => 25,
                     "MAX_BOND_DIM" => 2000,
                     "ACC" => accuracy
                 )

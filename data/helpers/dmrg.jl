@@ -50,10 +50,13 @@ function solve_xxz_hamiltonian_dmrg(H::MPO, ψ0::MPS, num_sweeps::Int, bond_dim:
     # setmaxdim!(sweeps, bond_dim)
     # setcutoff!(sweeps, cutoff)
     # E, ψ = dmrg(H, ψ0, sweeps; outputlevel=0) # output level 0 to make it quieter
-    E, ψ = dmrg(H, ψ0;
-            nsweeps = num_sweeps,
-            maxdim = bond_dim,
-            cutoff = cutoff,
+
+    sweeps = Sweeps(num_sweeps)
+    setmaxdim!(sweeps, bond_dim)
+    setcutoff!(sweeps, cutoff)
+
+    E, ψ = dmrg(H, ψ0,
+            sweeps;
             outputlevel = 1)
     return E, ψ
 end # function
