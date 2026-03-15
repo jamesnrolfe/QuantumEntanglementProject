@@ -26,26 +26,14 @@ function _write_params_to_group(g, params::Dict{String,Any})
     end
 end
 
-"""
-Save an MPS with its system parameters and its run parameters.
-
-Storage Layout (fresh format)
-- /system_params                               (group)     : holds system-wide parameters
-- /runs/<run_id>/params                        (group)     : canonical run-specific parameters
-- /runs/<run_id>/instances/<instance_id>/psi   (dataset)   : the MPS for this instance of the run
-- /runs/<run_id>/instances/<instance_id>/timestamp (dataset) : string timestamp for that instance
-
-Behavior
-- If a run group exists with the exact same `run_params`, a new instance is appended under that group.
-- Otherwise a new run group is created (numeric next id or provided `run_id`).
-"""
 function save_mps_with_params(
     filepath::String,
     ψ::MPS,
     system_params::Dict{String,Any},
     run_params::Dict{String,Any};
     run_id::Union{String,Nothing}=nothing,
-    param_safety::Bool=true
+    param_safety::Bool=true,
+    quiet::Bool=true
 )
     mode = isfile(filepath) ? "r+" : "w"
     h5open(filepath, mode) do file
@@ -133,8 +121,9 @@ function save_mps_with_params(
             catch
                 # ignore timestamp failures
             end
-
-            @info "Appended instance '$inst_name' to existing run '$matching_run_name' in $filepath."
+            if !quiet
+                @info "Appended instance '$inst_name' to existing run '$matching_run_name' in $filepath."
+            end
             return matching_run_name
         else
             # Create a new run group
@@ -181,7 +170,9 @@ function save_mps_with_params(
                 # ignore
             end
 
-            @info "Created new run '$run_id' with first instance in $filepath."
+            if !quiet
+                @info "Created new run '$run_id' with first instance in $filepath."
+            end
             return run_id
         end
     end

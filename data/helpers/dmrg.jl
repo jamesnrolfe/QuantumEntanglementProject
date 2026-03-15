@@ -57,7 +57,7 @@ function solve_xxz_hamiltonian_dmrg(H::MPO, ψ0::MPS, num_sweeps::Int, bond_dim:
 
     E, ψ = dmrg(H, ψ0,
             sweeps;
-            outputlevel = 1)
+            outputlevel = 0)
     return E, ψ
 end # function
 
