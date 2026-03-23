@@ -1,5 +1,5 @@
-using Pkg;
-Pkg.add(["HDF5", "ITensors"]);
+# using Pkg;
+# Pkg.add(["HDF5", "ITensors"]);
 using HDF5, ITensors
 using Dates, Logging
 

@@ -1,5 +1,5 @@
-using Pkg
-Pkg.add(["LinearAlgebra", "ITensors", "ITensorMPS", "Statistics"])
+# using Pkg
+# Pkg.add(["LinearAlgebra", "ITensors", "ITensorMPS", "Statistics"])
 
 using LinearAlgebra
 using ITensors

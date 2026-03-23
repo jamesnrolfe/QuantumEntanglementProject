@@ -1,6 +1,5 @@
-using Pkg; Pkg.add(["ProgressMeter"])
+# using Pkg; Pkg.add(["ProgressMeter"])
 using ProgressMeter
-
 
 CURRENT_DIR = @__DIR__
 include("../helpers/dmrg.jl")
@@ -9,13 +8,15 @@ include("../params.jl")
 
 function main()
     # N_vals = vcat(2:1:19, 20:2:40, [50, 60])
-    N_vals = [40]
-    sigma_vals = [0.002]
-    accuracies = [1e-16]
+    N_vals = 2:2:150
+    sigma_vals = [0.0]
+    accuracies = [1e-10]
     repeats = 1
 
     J = Δ = -1.0
     μ = 1.0
+
+    println("Starting...")
 
     num_tasks = repeats * length(N_vals) * length(sigma_vals) * length(accuracies)
 
