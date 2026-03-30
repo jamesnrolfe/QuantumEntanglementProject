@@ -8,9 +8,9 @@ include("../params.jl")
 
 function main()
     # N_vals = vcat(2:1:19, 20:2:40, [50, 60])
-    N_vals = 2:2:150
-    sigma_vals = [0.0]
-    accuracies = [1e-10]
+    N_vals = 35:5:60
+    sigma_vals = [0.01]
+    accuracies = [1e-16]
     repeats = 1
 
     J = Δ = -1.0
